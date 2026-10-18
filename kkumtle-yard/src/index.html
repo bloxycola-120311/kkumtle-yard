@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#2b1f16">
+<title>꿈틀이의 앞마당</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+/* Layout: 화면 전체가 앞마당(캔버스). HUD는 모서리에 걸린 나무 팻말처럼 떠 있음 */
+:root{
+  --night:#2b1f16;      /* 화면 바깥 흙 */
+  --sign:#f6e7c8;       /* 팻말 바탕 */
+  --sign-edge:#b8874d;  /* 팻말 테두리(나무) */
+  --ink:#3a2718;        /* 글씨 */
+  --leaf:#4f8a3a;       /* 새싹 초록 */
+  --worm:#ee8f96;       /* 지렁이 분홍 */
+  --alert:#d9452b;      /* 두더지 경고 */
+  --gold:#f2b632;       /* 슈퍼/상장 */
+  --display:"Jua","Gowun Dodum",system-ui,sans-serif;
+  --body:"Gowun Dodum",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;overflow:hidden;margin:0}
+body{background:var(--night);color:var(--ink);font-family:var(--body);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{position:fixed;inset:0;overflow:hidden}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+.panel{background:var(--sign);border:3px solid var(--sign-edge);border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.28)}
+#hudL{position:absolute;left:10px;top:calc(48px + env(safe-area-inset-top,0px));padding:8px 11px;width:min(205px,46vw);display:grid;gap:4px;font-size:14px}
+#hudL .row{display:flex;justify-content:space-between;align-items:center;gap:6px}
+#lives{position:absolute;left:10px;top:calc(10px + env(safe-area-inset-top,0px));display:flex;gap:2px;padding:4px 8px;border-radius:12px;background:rgba(43,31,22,.6);color:var(--worm);z-index:5;pointer-events:none}
+#lives .life{width:38px;height:24px;display:block;transition:opacity .3s}
+#lives .life svg{width:100%;height:100%;display:block}
+#lives .life.lost{color:#7d6a5c;opacity:.45}
+#lives .life.pop{animation:lifepop .9s}
+@keyframes lifepop{0%{transform:scale(1.6) rotate(-12deg);color:#ff5252}40%{transform:scale(.8) rotate(10deg)}100%{transform:none}}
+.lvl{font-family:var(--display);background:var(--leaf);color:#fff;border-radius:8px;padding:1px 8px;font-size:14px}
+.score{font-family:var(--display);font-size:24px;line-height:1;font-variant-numeric:tabular-nums}
+.score small{font-size:13px;margin-left:2px}
+.fertbar{height:10px;background:#d8c39a;border-radius:6px;overflow:hidden;border:1px solid var(--sign-edge)}
+.fertbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8a5a32,#4f8a3a);transition:width .4s}
+.small{font-size:12px;font-variant-numeric:tabular-nums;opacity:.85}
+.tbtn{font:inherit;font-size:15px;background:transparent;border:2px solid var(--sign-edge);border-radius:8px;width:30px;height:28px;cursor:pointer;color:var(--ink);padding:0}
+.tbtn:focus-visible,.item:focus-visible,.big:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+#hudR{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top,0px));padding:8px 10px;width:min(230px,46vw);font-size:13px}
+#hudR h3{margin:0 0 4px;font-family:var(--display);font-weight:400;font-size:16px;display:flex;justify-content:space-between}
+#quests{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+#quests li{background:rgba(255,255,255,.55);border-radius:8px;padding:4px 6px;line-height:1.25}
+#quests li .qb{height:5px;background:#e3d2ad;border-radius:3px;margin-top:3px;overflow:hidden}
+#quests li .qb i{display:block;height:100%;background:var(--leaf);width:0}
+#quests li .qp{float:right;font-variant-numeric:tabular-nums;font-weight:700}
+#quests li.done{background:var(--gold);animation:pop .5s}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+#banner{position:absolute;left:50%;top:calc(110px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--display);font-size:clamp(16px,4.2vw,24px);color:#fff;text-shadow:0 2px 0 #000,0 0 8px rgba(0,0,0,.6);text-align:center;pointer-events:none;width:min(92vw,560px);opacity:0;transition:opacity .25s}
+#banner.show{opacity:1}
+#banner.alert{color:#ffd9cf}
+#joy{position:absolute;left:22px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:112px;height:112px;border-radius:50%;border:3px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);pointer-events:none;opacity:.5}
+#joy.on{opacity:.9;bottom:auto;margin:-56px 0 0 -56px}
+#joyKnob{position:absolute;left:28px;top:28px;width:50px;height:50px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ffd27a);box-shadow:0 3px 8px rgba(0,0,0,.35)}
+#items{position:absolute;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:8px}
+.item{position:relative;width:64px;height:64px;border-radius:16px;border:3px solid var(--sign-edge);background:var(--sign);font:inherit;cursor:pointer;display:grid;place-items:center;padding:0;color:var(--ink);box-shadow:0 4px 0 rgba(0,0,0,.3)}
+.item:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.3)}
+.item .em{font-size:26px;line-height:1;margin-top:-8px}
+.item .nm{position:absolute;bottom:4px;font-size:11px;font-family:var(--display)}
+.item .cnt{position:absolute;top:-8px;right:-8px;background:var(--alert);color:#fff;border-radius:50%;min-width:22px;height:22px;display:grid;place-items:center;font-size:13px}
+.item kbd{position:absolute;top:2px;left:5px;font-size:10px;opacity:.55;font-family:var(--body)}
+.item.empty{opacity:.45}
+.item.empty .cnt{background:#9b8a70}
+.item.ready-super{border-color:var(--gold);animation:glow 1s infinite alternate}
+@keyframes glow{from{box-shadow:0 0 0 rgba(242,182,50,.0),0 4px 0 rgba(0,0,0,.3)}to{box-shadow:0 0 18px rgba(242,182,50,.95),0 4px 0 rgba(0,0,0,.3)}}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(30,20,12,.55);padding:16px;overflow:auto}
+.card{background:var(--sign);border:4px solid var(--sign-edge);border-radius:20px;padding:20px 22px;max-width:480px;width:100%;box-shadow:0 8px 0 rgba(0,0,0,.3);display:grid;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:15px;padding:6px 11px;border-radius:999px;border:2px solid var(--sign-edge);background:#fff8e6;cursor:pointer}
+.chip.on{background:var(--hc,#4f8a3a);color:#fff;border-color:rgba(0,0,0,.25);text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.hdot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--hc);margin-right:5px;vertical-align:-1px;border:1px solid rgba(0,0,0,.2)}
+#pfNick{font:inherit;font-size:18px;padding:8px 10px;border-radius:10px;border:2px solid var(--sign-edge)}#pfNick.bad{border-color:#d33}
+.card h3{margin:0;font-size:15px}
+.pfline{font:inherit;font-size:14px;background:none;border:1px dashed var(--sign-edge);border-radius:10px;padding:6px;cursor:pointer}
+.quiz .qq{font-size:19px;font-weight:700}.qopts{display:grid;gap:8px}
+.qopt{font:inherit;font-size:16px;text-align:left;padding:10px 12px;border-radius:12px;border:2px solid var(--sign-edge);background:#fff8e6;cursor:pointer}
+.qopt:disabled{color:inherit;opacity:1;cursor:default}.qopt.right{background:#bfe8a8;border-color:#3f8f3a}.qopt.wrong{background:#f7c0b3;border-color:#c0392b}
+.qfeed{background:#fff3c4;border-radius:10px;padding:10px}
+.hbody{display:grid;gap:8px;max-height:46vh;overflow:auto}.hbar{display:grid;grid-template-columns:minmax(90px,38%) 1fr 44px;gap:8px;align-items:center}
+.hn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ht{height:18px;background:#0001;border-radius:9px;overflow:hidden}.ht i{display:block;height:100%;border-radius:9px;min-width:3px}
+.hbar b{text-align:right}.mine p{margin:4px 0}
+.card h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(34px,9vw,52px);line-height:1.05;color:#7a3f22;text-wrap:balance}
+.card h1 span{color:var(--worm);-webkit-text-stroke:1px #7a3f22}
+.card h2{margin:0;font-family:var(--display);font-weight:400;font-size:28px;text-wrap:balance}
+.card p{margin:0;line-height:1.55}
+.howto{margin:0;padding:0;list-style:none;display:grid;gap:7px;font-size:14px;line-height:1.45}
+.howto li{display:grid;grid-template-columns:2.1em 1fr;gap:4px}
+.big{font-family:var(--display);font-size:22px;border:none;border-radius:14px;padding:12px 18px;background:var(--leaf);color:#fff;cursor:pointer;box-shadow:0 5px 0 #2f5a22}
+.big:active{transform:translateY(3px);box-shadow:0 2px 0 #2f5a22}
+.big.alt{background:#8a6a45;box-shadow:0 5px 0 #5a4127}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap}
+.btnrow .big{flex:1 1 140px}
+.best{font-size:13px;opacity:.75}
+.stats{display:grid;grid-template-columns:1fr auto 1fr auto;gap:3px 10px;font-variant-numeric:tabular-nums;font-size:13px;margin-top:6px}
+.statbox summary{cursor:pointer;font-family:var(--display);font-size:16px}
+.stats b{text-align:right}
+/* 상장 */
+.cert{background:#fffaf0;border:6px double #b8873a;text-align:center;gap:10px}
+.cert .tag{font-family:var(--display);letter-spacing:.5em;font-size:30px;color:#9b6a22;padding-left:.5em}
+.cert .medal{font-size:64px;line-height:1}
+.cert .name{font-family:var(--display);font-size:26px}
+.cert .who{font-size:14px;opacity:.8}
+.cert p{font-size:15px}
+.cert .from{font-size:13px;opacity:.75}
+/* 시작 화면 메타 */
+.daily{background:#fff3c4;border:2px dashed var(--gold);border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.45}
+.daily small{opacity:.7}
+.diffrow{display:flex;gap:6px}
+.dbtn{flex:1;font-family:var(--display);font-size:16px;border:3px solid var(--sign-edge);border-radius:12px;background:#fffaf0;color:var(--ink);padding:6px 4px;cursor:pointer}
+.dbtn.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.dnote{font-size:12px;opacity:.75;margin-top:-6px;text-align:center}
+.howbox summary{cursor:pointer;font-family:var(--display);font-size:16px;margin-bottom:6px}
+.stars{font-size:30px;letter-spacing:4px}
+.stars .off{filter:grayscale(1);opacity:.3}
+.crit{list-style:none;margin:0;padding:0;font-size:14px;display:grid;gap:2px}
+.gcard .gm .best{font-size:12px}
+.dexgrid{display:grid;gap:6px;max-height:58vh;overflow:auto}
+.dexgrid h3{margin:4px 0 0;font-family:var(--display);font-weight:400;font-size:16px}
+.dexrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
+.dx{background:rgba(255,255,255,.65);border-radius:10px;padding:6px 4px;text-align:center;display:grid;gap:2px}
+.dx span{font-size:30px;line-height:1}
+.dx small{font-size:11px;line-height:1.2}
+.dx.no{opacity:.45}
+.lkrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+#looks h3{margin:2px 0;font-family:var(--display);font-weight:400}
+.lk{display:grid;gap:3px;justify-items:center;border:3px solid var(--sign-edge);border-radius:12px;background:#fffaf0;color:var(--ink);padding:6px 4px;font:inherit;font-size:13px;cursor:pointer}
+.lk.on{border-color:var(--leaf);box-shadow:0 0 0 3px rgba(79,138,58,.35)}
+.lk.locked{opacity:.55;cursor:default}
+.lk small{font-size:10px;line-height:1.2}
+.lk .he{font-size:26px;line-height:1}
+.sw{display:block;width:44px;height:16px;border-radius:8px}
+.sw-pink{background:#ee8f96}.sw-green{background:#7fca6e}.sw-blue{background:#75bde9}.sw-gold{background:#f5c94e}
+.sw-rainbow{background:linear-gradient(90deg,#ff6b6b,#ffd23f,#7bd35a,#4fc3f7,#b07cf2)}
+/* 순위표 */
+.boardbox{display:grid;gap:6px}
+.nhint{font-family:var(--display);font-size:17px}
+.namerow{display:flex;gap:8px}
+.namerow input{flex:1;min-width:0;font:inherit;font-size:18px;padding:8px 10px;border:3px solid var(--sign-edge);border-radius:12px;background:#fffaf0;color:var(--ink)}
+.namerow .big{font-size:18px;padding:8px 14px}
+.board{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:38vh;overflow:auto}
+.board li{display:grid;grid-template-columns:2.2em 1fr auto;align-items:center;gap:6px;background:rgba(255,255,255,.6);border-radius:10px;padding:5px 9px;font-variant-numeric:tabular-nums}
+.board li .rk{font-family:var(--display);font-size:18px;text-align:center}
+.board li .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.board li .nm small{display:block;font-weight:400;font-size:11px;opacity:.7}
+.board li b{font-family:var(--display);font-size:18px;font-weight:400}
+.board li.me{background:var(--gold);animation:pop .6s}
+.board li.empty{display:block;text-align:center;opacity:.7}
+.skipend{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:auto!important;padding:0 12px!important;background:rgba(255,255,255,.85)}
+/* 지구본 & 비행 */
+.globe{background:transparent;place-items:end center;pointer-events:none}
+.globe .card{pointer-events:auto;max-width:620px;gap:8px;padding:14px 16px;max-height:64vh;overflow:auto}
+.gpanel .btnrow{position:sticky;bottom:-14px;background:var(--sign);padding-block:8px 6px;margin-bottom:-6px}
+@media (min-width:901px){.globe{place-items:center end}.globe .card{max-width:440px;max-height:calc(100vh - 32px)}}
+.gsub{font-size:13px}
+.glist{display:grid;gap:6px}
+.gcard{display:grid;grid-template-columns:2.2em 1fr auto;gap:8px;align-items:center;text-align:left;border:2px solid var(--sign-edge);background:#fffaf0;border-radius:12px;padding:6px 10px;font:inherit;font-size:13px;line-height:1.3;color:var(--ink);cursor:pointer}
+.gcard .gf{font-size:26px}
+.gcard .gt{min-width:0}
+.gcard .gm{text-align:right;color:#c27c0e;font-size:13px;white-space:nowrap}
+.gcard small{opacity:.75}
+.gcard.sel{border-color:var(--gold);background:#fff3c4;box-shadow:0 0 0 3px rgba(242,182,50,.5)}
+.gcard:disabled{opacity:.5;cursor:default}
+.gcard:focus-visible{outline:3px solid var(--gold)}
+#flyUI .fire{position:absolute;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:96px;height:96px;border-radius:50%;border:4px solid #fff;background:radial-gradient(circle at 35% 30%,#ffb74d,#e65100);color:#fff;font-family:var(--display);font-size:15px;display:grid;place-items:center;align-content:center;box-shadow:0 6px 0 rgba(0,0,0,.3);touch-action:none;cursor:pointer}
+#flyUI .fire .em{font-size:34px;line-height:1}
+#flyUI .fire #fireLbl{font-size:13px}
+#flyUI .fire.on{transform:scale(.92)}
+#flyUI .flyp{position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:rgba(255,255,255,.85)}
+@media (max-width:480px){
+  #banner{top:calc(215px + env(safe-area-inset-top,0px))}
+  #hudL{font-size:12px;padding:6px 8px}
+  .score{font-size:20px}
+  #hudR{font-size:11.5px;padding:6px 8px}
+  #hudR h3{font-size:14px}
+  .item{width:56px;height:56px}
+  .item .em{font-size:22px}
+}
+#hudR h3{cursor:pointer}.qtog{font-style:normal;font-size:.8em;opacity:.7;display:inline-block;transition:transform .2s}
+#hudR.mini #quests{display:none}#hudR.mini h3{margin:0;gap:10px}#hudR.mini .qtog{transform:rotate(-90deg)}#hudR.mini{width:auto}
+.item.press{transform:scale(.9)}
+@media (max-height:500px) and (orientation:landscape){
+  #lives{top:calc(4px + env(safe-area-inset-top,0px));padding:2px 6px}#lives .life{width:26px;height:17px}
+  #hudL{top:calc(30px + env(safe-area-inset-top,0px));left:calc(6px + env(safe-area-inset-left,0px));width:150px;padding:4px 7px;gap:2px;font-size:11px;border-width:2px}
+  #hudL .lvl{font-size:11px;padding:0 6px}.score{font-size:17px}.score small{font-size:11px}#hudL .small{font-size:10.5px}
+  #distTxt{display:none}.tbtn{width:24px;height:22px;font-size:12px}.fertbar{height:7px}
+  #hudR{top:calc(4px + env(safe-area-inset-top,0px));right:calc(6px + env(safe-area-inset-right,0px));width:190px;padding:4px 7px;font-size:10.5px;border-width:2px}
+  #hudR h3{font-size:13px;margin-bottom:2px}#quests{gap:3px}#quests li{padding:2px 5px;line-height:1.15}#quests li .qb{height:3px;margin-top:2px}
+  #items{right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px))}.item{width:54px;height:54px}.item .em{font-size:20px}
+  #banner{top:calc(58px + env(safe-area-inset-top,0px));font-size:17px}
+  #joy{bottom:calc(92px + env(safe-area-inset-bottom,0px));left:calc(14px + env(safe-area-inset-left,0px))}
+}
+@media (prefers-reduced-motion:reduce){.item.ready-super,#quests li.done{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="앞마당 게임 화면"></canvas>
+
+  <div id="hudL" class="panel" hidden>
+    <div class="row"><span class="lvl" id="lvl">Lv.1</span></div>
+    <div class="row"><span class="score"><span id="score">0</span><small>점</small></span><span id="fruit" title="열린 과일">🍎 0</span></div>
+    <div class="fertbar" title="흙 비옥도"><i id="fertFill"></i></div>
+    <div class="row small"><span id="fertTxt">흙 비옥도 0%</span><span id="lenTxt">10마디</span></div>
+    <div class="row small" id="missionRow" hidden><b id="missionTxt"></b></div>
+    <div class="row small"><span id="distTxt">0m</span>
+      <span><button class="tbtn" id="btnGlobe" aria-label="globe" hidden>🌍</button> <button class="tbtn" id="btnMusic" aria-label="음악 켜기/끄기">🎵</button> <button class="tbtn" id="btnMute" aria-label="소리 켜기/끄기">🔊</button> <button class="tbtn" id="btnPause" aria-label="일시정지">⏸</button></span></div>
+  </div>
+
+  <div id="hudR" class="panel" hidden>
+    <h3><span>📜 퀘스트 <i class="qtog">▾</i></span><span id="qdone">완료 0</span></h3>
+    <ul id="quests"></ul>
+  </div>
+
+  <div id="lives" hidden></div>
+  <div id="joy" hidden><i id="joyKnob"></i></div>
+  <div id="banner"></div>
+
+  <div id="items" hidden>
+    <button class="item" id="it-speed" data-k="speed" aria-label="스피드 업"><kbd>1</kbd><span class="em">⚡</span><span class="nm">스피드</span><b class="cnt">0</b></button>
+    <button class="item" id="it-dive" data-k="dive" aria-label="땅굴 숨기"><kbd>2</kbd><span class="em">🌀</span><span class="nm">땅굴</span><b class="cnt">0</b></button>
+    <button class="item" id="it-super" data-k="super" aria-label="슈퍼 꿈틀이 변신"><kbd>3</kbd><span class="em">⭐</span><span class="nm">슈퍼</span><b class="cnt">0</b></button>
+  </div>
+
+  <div id="title" class="overlay">
+    <div class="card">
+      <h1>꿈틀이의<br><span>앞마당</span></h1>
+      <p>메마른 앞마당을 살려 주세요! 꿈틀이가 영양분을 먹고 돌아다닐수록 흙이 비옥해지고 과일이 주렁주렁 열려요.</p>
+      <div class="daily" id="dailyBox"></div>
+      <div class="diffrow" id="diffRow"></div>
+      <div class="dnote" id="diffNote"></div>
+      <button class="big" id="btnStart">꿈틀꿈틀 시작!</button>
+      <div class="btnrow"><button class="big alt" id="btnMusicT" style="font-size:16px;padding:8px 12px">🎵 음악 켜짐</button><button class="big alt" id="btnBoardT" style="font-size:16px;padding:8px 12px"></button><button class="big alt" id="btnDexT" style="font-size:16px;padding:8px 12px"></button><button class="big alt" id="btnLookT" style="font-size:16px;padding:8px 12px"></button><button class="big alt" id="btnHouseT" style="font-size:16px;padding:8px 12px"></button></div>
+      <button class="pfline" id="btnProfileT"></button>
+      <details class="howbox"><summary id="howSum"></summary>
+      <ul class="howto">
+        <li><span>🕹️</span><span><b>움직이기</b> · 휴대폰은 화면 아무 데나 엄지를 대고 밀어요(조이스틱). PC는 마우스를 움직이거나 방향키(WASD).</span></li>
+        <li><span>🍂</span><span><b>영양분</b> 🍂☕🥚🍌🥕 을 먹으면 몸이 길어지고, 지나간 자리의 흙이 살아나요.</span></li>
+        <li><span>📜</span><span><b>퀘스트</b>를 깨면 아이템 보상! 흙이 좋아지면 <b>상장</b>을 받아요.</span></li>
+        <li><span>⚠️</span><span>땅이 흔들리면 <b>두더지</b>가 와요. 꼬리나 머리를 물리지 않게 도망치세요!</span></li>
+        <li><span>🐦</span><span>우리 집 앵무새 <b>버터</b>가 가끔 날아와요. <b>빨간 착륙 표시</b> 안에 있으면 콕콕 쪼여서 점수와 몸이 깎여요!</span></li>
+        <li><span>🐔</span><span>우리 집 닭 <b>망고</b>는 눈앞에 있는 건 뭐든 쪼아요. 두더지를 망고 앞으로 유인하면 대신 혼내 줘요! 망고가 낳은 달걀은 깨면 흙 거름, 그냥 두면 벌레 잡는 병아리가 나와요.</span></li>
+        <li><span>🦗</span><span><b>메뚜기 떼</b>가 나무를 갉아먹으면 시든 나무 주변을 돌며 다시 살려 주세요. 비 오는 날엔 <b>번개</b>가 칠 노란 자리를 피해요! 다른 나라에선 그 나라 동물들이 도와주거나 방해해요.</span></li>
+        <li><span>🔥</span><span>비행 중에는 <b>F 키</b>(또는 💩 버튼)로 발사, 방향키·WASD로 움직여요.</span></li>
+        <li><span>🌍</span><span>마당 레벨 3이 되면 <b>세계 곳곳에서 SOS</b>가 와요. 버터를 타고 날아가 까마귀를 💩로 쫓아내고 그 나라 땅도 살려 주세요!</span></li>
+        <li><span>⭐</span><span>⚡스피드(1) · 🌀땅굴 숨기(2) · ⭐<b>슈퍼 꿈틀이</b>(3, 스페이스) — 슈퍼 꿈틀이가 되면 두더지에게 싸대기 한 방!</span></li>
+      </ul>
+      </details>
+      <div class="best" id="bestTxt"></div>
+    </div>
+  </div>
+
+  <div id="globeUI" class="overlay globe" hidden>
+    <div class="card gpanel" id="gpanel">
+      <h2 id="gTitle"></h2><p id="gSub" class="gsub"></p>
+      <div id="gList" class="glist"></div>
+      <div class="btnrow"><button class="big" id="btnFly" disabled></button><button class="big alt" id="btnGlobeBack"></button></div>
+    </div>
+  </div>
+  <div id="flyUI" hidden>
+    <button id="btnFire" class="fire"><span class="em">💩</span><span id="fireLbl"></span></button>
+    <button class="tbtn flyp" id="btnFlyPause">⏸</button>
+  </div>
+
+  <div id="boardOv" class="overlay" hidden>
+    <div class="card"><h2 id="boardTitle"></h2><ol class="board" id="boardList2"></ol><button class="big alt" id="btnBoardClose"></button></div>
+  </div>
+  <div id="endUI" hidden><button class="tbtn skipend" id="btnSkipEnd"></button></div>
+
+  <div id="dexOv" class="overlay" hidden>
+    <div class="card"><h2><span id="dexTitle"></span> <small id="dexCount"></small></h2><div id="dexGrid" class="dexgrid"></div><button class="big alt" id="btnDexClose"></button></div>
+  </div>
+  <div id="looks" class="overlay" hidden>
+    <div class="card"><h2 id="lookTitle"></h2><h3 id="lookColorH"></h3><div class="lkrow" id="lookColors"></div><h3 id="lookHatH"></h3><div class="lkrow" id="lookHats"></div><button class="big alt" id="btnLookClose"></button></div>
+  </div>
+
+  <div id="profileOv" class="overlay" hidden>
+    <div class="card"><h2 id="pfTitle"></h2><h3 id="pfNickH"></h3><input id="pfNick" maxlength="12" autocomplete="off">
+      <h3 id="pfYearH"></h3><div class="chips" id="pfYears"></div><h3 id="pfGroupH"></h3><div class="chips" id="pfGroup"></div>
+      <div class="btnrow"><button class="big" id="btnPfSave"></button><button class="big alt" id="btnPfSkip"></button></div></div>
+  </div>
+  <div id="quizOv" class="overlay" hidden>
+    <div class="card quiz"><h2 id="qzTitle"></h2><small id="qzSub"></small><p id="qzQ" class="qq"></p><div id="qzOpts" class="qopts"></div>
+      <p id="qzFeed" class="qfeed" hidden></p><div class="btnrow"><button class="big" id="btnQzNext" hidden></button><button class="big alt" id="btnQzSkip"></button></div></div>
+  </div>
+  <div id="houseOv" class="overlay" hidden>
+    <div class="card"><h2 id="houseTitle"></h2><div class="chips" id="houseTabs"><button class="chip on" data-t="house"></button><button class="chip" data-t="class"></button><button class="chip" data-t="players"></button><button class="chip" data-t="me"></button></div>
+      <div id="houseBody" class="hbody"></div><small id="houseNote"></small><button class="big alt" id="btnHouseClose"></button></div>
+  </div>
+  <div id="pause" class="overlay" hidden>
+    <div class="card"><h2>잠깐 쉬는 중 ☕</h2><p>꿈틀이가 흙 속에서 기다리고 있어요.</p>
+      <div class="btnrow"><button class="big" id="btnResume">계속하기</button><button class="big alt" id="btnQuit">처음으로</button></div><button class="big alt" id="btnQuizP" style="font-size:16px"></button></div>
+  </div>
+
+  <div id="award" class="overlay" hidden>
+    <div class="card cert" id="certCard"></div>
+  </div>
+
+  <div id="over" class="overlay" hidden>
+    <div class="card"><h2 id="overTitle">꿈틀이가 지쳤어요…</h2>
+      <div class="boardbox"><div class="nhint" id="nameHint"></div>
+        <div class="namerow" id="nameRow"><input id="nameIn" maxlength="12" autocomplete="off" enterkeyhint="done"><button class="big" id="btnSaveName"></button></div>
+        <ol class="board" id="boardList"></ol></div>
+      <details class="statbox"><summary id="statSum"></summary><div class="stats" id="overStats"></div></details>
+      <div class="best" id="overBest"></div>
+      <div class="btnrow"><button class="big" id="btnContinue" hidden></button><button class="big" id="btnRetry">다시 하기</button><button class="big alt" id="btnHome">처음으로</button></div></div>
+  </div>
+</div>
+
+<!-- BUILD:SCRIPTS -->
+<script src="js/00-core.js"></script>
+<script src="js/10-land.js"></script>
+<script src="js/20-enemies.js"></script>
+<script src="js/25-critters.js"></script>
+<script src="js/26-wildlife.js"></script>
+<script src="js/30-game.js"></script>
+<script src="js/40-draw.js"></script>
+<script src="js/50-world.js"></script>
+<script src="js/60-burrow.js"></script>
+<script src="js/70-ending.js"></script>
+<script src="js/75-meta.js"></script>
+<script src="js/72-quiz-bank.js"></script>
+<script src="js/73-school.js"></script>
+<script src="js/90-main.js"></script>
+<!-- /BUILD:SCRIPTS -->
+</body>
+</html>
